@@ -138,4 +138,3 @@ Guwahati Weather Data,Assam,https://www.kaggle.com/datasets/sumanthvrao/weather-
     ("Crime in India State Data", "https://www.kaggle.com/datasets/"),
     ("India States–Districts Geo CSV", "https://www.kaggle.com/datasets/"),
     ("Geographical Climate Query Dataset", "https://www.kaggle.com/datasets/")
-]

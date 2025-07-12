@@ -1,0 +1,11 @@
+
+*.gguf
+*.dylib
+*.tflite
+*.log
+bin/
+build/
+*.mp3
+*.wav
+.DS_Store
+

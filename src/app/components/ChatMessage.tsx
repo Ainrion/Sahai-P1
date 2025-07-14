@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { ChatMessage as ChatMessageType } from "../types/chat";
 import { Bot, User } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -8,9 +8,50 @@ interface ChatMessageProps {
   message: ChatMessageType;
 }
 
+// Animated dots component for streaming indicator
+const StreamingIndicator: React.FC = () => {
+  const [dotCount, setDotCount] = useState(1);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDotCount((prev) => (prev === 3 ? 1 : prev + 1));
+    }, 500); // Change dots every 500ms
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const dots = ".".repeat(dotCount);
+
+  return (
+    <span className="inline-flex items-center font-medium ml-1">
+      <span
+        className="mr-1 text-green-500 animate-pulse"
+        style={{
+          textShadow:
+            "0 0 8px rgba(34, 197, 94, 0.6), 0 0 16px rgba(34, 197, 94, 0.3)",
+          animationDuration: "2s",
+        }}
+      >
+        Generating
+      </span>
+      <span
+        className="text-green-500 min-w-[24px] inline-block"
+        style={{
+          textShadow:
+            "0 0 6px rgba(34, 197, 94, 0.8), 0 0 12px rgba(34, 197, 94, 0.4)",
+          filter: "drop-shadow(0 0 4px rgba(34, 197, 94, 0.6))",
+        }}
+      >
+        {dots}
+      </span>
+    </span>
+  );
+};
+
 export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const isUser = message.role === "user";
   const isTyping = message.isTyping;
+  const isStreaming = message.isStreaming;
 
   return (
     <div
@@ -65,9 +106,15 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
                 <p className="text-white m-0">{message.content}</p>
               ) : (
                 <div className="text-gray-800 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {message.content}
-                  </ReactMarkdown>
+                  <div className="flex items-start">
+                    <div className="flex-1">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
+                    {/* Show streaming indicator inline */}
+                    {isStreaming && <StreamingIndicator />}
+                  </div>
                 </div>
               )}
             </div>

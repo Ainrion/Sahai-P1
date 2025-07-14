@@ -3,7 +3,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
-import { ChatMessage as ChatMessageType } from "../types/chat";
+import {
+  ChatMessage as ChatMessageType,
+  StreamingChatResponse,
+} from "../types/chat";
 import { MessageSquare, AlertCircle, Wifi, WifiOff } from "lucide-react";
 
 export const Chat: React.FC = () => {
@@ -13,6 +16,7 @@ export const Chat: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const currentStreamingMessageIdRef = useRef<string | null>(null);
 
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -49,19 +53,22 @@ export const Chat: React.FC = () => {
       timestamp: new Date(),
     };
 
-    const typingMessage: ChatMessageType = {
-      id: generateId(),
+    const streamingMessageId = generateId();
+    const streamingMessage: ChatMessageType = {
+      id: streamingMessageId,
       content: "",
       role: "assistant",
       timestamp: new Date(),
-      isTyping: true,
+      isStreaming: true,
     };
 
-    setMessages((prev) => [...prev, userMessage, typingMessage]);
+    setMessages((prev) => [...prev, userMessage, streamingMessage]);
     setIsLoading(true);
     setError(null);
+    currentStreamingMessageIdRef.current = streamingMessageId;
 
     try {
+      // Use fetch with streaming instead of EventSource for POST requests
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -69,7 +76,7 @@ export const Chat: React.FC = () => {
         },
         body: JSON.stringify({
           message: content,
-          conversation: messages.filter((m) => !m.isTyping), // Send conversation history without typing indicators
+          conversation: messages.filter((m) => !m.isTyping && !m.isStreaming), // Send conversation history without indicators
         }),
       });
 
@@ -77,35 +84,95 @@ export const Chat: React.FC = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-
-      if (data.error) {
-        throw new Error(data.error);
+      if (!response.body) {
+        throw new Error("No response body available");
       }
 
-      // Replace typing message with actual response
-      setMessages((prev) => {
-        const updated = [...prev];
-        const typingIndex = updated.findIndex((m) => m.isTyping);
-        if (typingIndex !== -1) {
-          updated[typingIndex] = {
-            id: generateId(),
-            content: data.message,
-            role: "assistant",
-            timestamp: new Date(),
-            isTyping: false,
-          };
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          // Mark streaming as complete when stream ends
+          setMessages((prev) => {
+            const updated = [...prev];
+            const messageIndex = updated.findIndex(
+              (m) => m.id === currentStreamingMessageIdRef.current
+            );
+            if (messageIndex !== -1) {
+              updated[messageIndex] = {
+                ...updated[messageIndex],
+                isStreaming: false,
+              };
+            }
+            return updated;
+          });
+          break;
         }
-        return updated;
-      });
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.trim().startsWith("data: ")) {
+            try {
+              const jsonStr = line.replace("data: ", "");
+              const data: StreamingChatResponse = JSON.parse(jsonStr);
+
+              if (data.type === "chunk" && data.content) {
+                // Update the streaming message with new content
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  const messageIndex = updated.findIndex(
+                    (m) => m.id === currentStreamingMessageIdRef.current
+                  );
+                  if (messageIndex !== -1) {
+                    updated[messageIndex] = {
+                      ...updated[messageIndex],
+                      content: updated[messageIndex].content + data.content,
+                    };
+                  }
+                  return updated;
+                });
+              } else if (data.type === "done") {
+                // Mark streaming as complete
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  const messageIndex = updated.findIndex(
+                    (m) => m.id === currentStreamingMessageIdRef.current
+                  );
+                  if (messageIndex !== -1) {
+                    updated[messageIndex] = {
+                      ...updated[messageIndex],
+                      isStreaming: false,
+                    };
+                  }
+                  return updated;
+                });
+                break;
+              } else if (data.type === "error") {
+                throw new Error(data.error || "Streaming error occurred");
+              }
+            } catch (parseError) {
+              console.error("Error parsing streaming response:", parseError);
+            }
+          }
+        }
+      }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to send message";
       setError(errorMessage);
 
-      // Remove typing message and add error message
+      // Remove streaming message and add error message
       setMessages((prev) => {
-        const updated = prev.filter((m) => !m.isTyping);
+        const updated = prev.filter(
+          (m) => m.id !== currentStreamingMessageIdRef.current
+        );
         updated.push({
           id: generateId(),
           content: `Sorry, I encountered an error: ${errorMessage}. Please make sure Ollama is running with Llama 3.2 3B model.`,
@@ -116,6 +183,7 @@ export const Chat: React.FC = () => {
       });
     } finally {
       setIsLoading(false);
+      currentStreamingMessageIdRef.current = null;
     }
   };
 
@@ -208,7 +276,7 @@ export const Chat: React.FC = () => {
           !isConnected
             ? "Connect to Ollama to start chatting..."
             : isLoading
-            ? "AI is thinking..."
+            ? "AI is responding..."
             : "Type your message in Hindi or English..."
         }
       />

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ChatMessage } from "../../types/chat";
+import { searchCulturalKnowledge, searchDocuments } from "../../lib/weaviate";
+import { RAGChatResponse } from "../../types/vector";
 
 // Ollama API configuration
 const OLLAMA_BASE_URL = "http://localhost:11434";
@@ -36,18 +38,82 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Perform RAG search for relevant context
+    let ragContext = "";
+    let sources: Array<{
+      title: string;
+      category: string;
+      content: string;
+      relevance: number;
+    }> = [];
+
+    try {
+      // Search cultural knowledge and documents for context
+      const [culturalResults, documentResults] = await Promise.all([
+        searchCulturalKnowledge(message, undefined, 3),
+        searchDocuments(message, 2),
+      ]);
+
+      // Process cultural knowledge results
+      if (culturalResults.success && culturalResults.data.length > 0) {
+        culturalResults.data.forEach((item: any, index: number) => {
+          ragContext += `\n\nCultural Knowledge ${index + 1}:\nTitle: ${
+            item.title
+          }\nCategory: ${item.category}\nContent: ${item.content}\nRegion: ${
+            item.region || "General"
+          }\n`;
+          sources.push({
+            title: item.title,
+            category: item.category,
+            content: item.content.substring(0, 200) + "...",
+            relevance: 0.9 - index * 0.1,
+          });
+        });
+      }
+
+      // Process document results
+      if (documentResults.success && documentResults.data.length > 0) {
+        documentResults.data.forEach((item: any, index: number) => {
+          ragContext += `\n\nDocument ${index + 1}:\nFile: ${
+            item.fileName
+          }\nContent: ${item.content.substring(0, 500)}\n`;
+          sources.push({
+            title: item.fileName,
+            category: "document",
+            content: item.content.substring(0, 200) + "...",
+            relevance: 0.8 - index * 0.1,
+          });
+        });
+      }
+    } catch (ragError) {
+      console.error("RAG search error:", ragError);
+      // Continue without RAG context if search fails
+    }
+
     // Build conversation history for context
-    const messages = [
-      {
-        role: "system",
-        content: `You are Sahai, a helpful AI assistant that can communicate in both Hindi and English. You have knowledge about Indian culture, festivals, food, and customs. You can code-switch between Hindi and English naturally based on the user's preference. Always be respectful and culturally sensitive.
+    const systemPrompt = `You are Sahai, a helpful AI assistant that can communicate in both Hindi and English. You have knowledge about Indian culture, festivals, food, and customs. You can code-switch between Hindi and English naturally based on the user's preference. Always be respectful and culturally sensitive.
 
 Key guidelines:
 - Respond in the same language as the user (Hindi or English)
 - If the user mixes languages, feel free to do the same
 - Provide culturally relevant examples when discussing Indian topics
 - Keep responses conversational and helpful
-- If asked about technical topics, provide clear explanations`,
+- If asked about technical topics, provide clear explanations
+- Use the provided context to enhance your responses when relevant
+
+${ragContext ? `\n\nRelevant Context from Knowledge Base:\n${ragContext}` : ""}
+
+Instructions for using context:
+- Use the context to provide more accurate and detailed information
+- Always acknowledge when information comes from the knowledge base
+- If the context is relevant, integrate it naturally into your response
+- If the context is not relevant to the user's question, you can ignore it
+- Maintain your conversational and helpful tone while being informative`;
+
+    const messages = [
+      {
+        role: "system",
+        content: systemPrompt,
       },
       // Add conversation history (last 10 messages for context)
       ...conversation.slice(-10).map((msg) => ({
@@ -118,12 +184,20 @@ Key guidelines:
       model: data.model,
       done: data.done,
       responseLength: data.message.content.length,
+      sourcesCount: sources.length,
     });
+
+    const ragResponse: RAGChatResponse = {
+      message: data.message.content,
+      sources: sources,
+    };
 
     return NextResponse.json({
       message: data.message.content,
       model: data.model,
       timestamp: new Date().toISOString(),
+      sources: sources,
+      ragEnabled: ragContext.length > 0,
     });
   } catch (error) {
     console.error("Chat API error:", error);

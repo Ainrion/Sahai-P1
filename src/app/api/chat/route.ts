@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ChatMessage } from "../../types/chat";
+import { ChatMessage, StreamingChatResponse } from "../../types/chat";
 import { searchCulturalKnowledge, searchDocuments } from "../../lib/weaviate";
 import { RAGChatResponse } from "../../types/vector";
 
@@ -130,7 +130,7 @@ Instructions for using context:
     const ollamaRequest: OllamaRequest = {
       model: MODEL_NAME,
       messages: messages,
-      stream: false,
+      stream: true, // Enable streaming
       options: {
         temperature: 0.7,
         top_p: 0.9,
@@ -138,7 +138,7 @@ Instructions for using context:
       },
     };
 
-    console.log("Sending request to Ollama:", {
+    console.log("Sending streaming request to Ollama:", {
       model: MODEL_NAME,
       messageCount: messages.length,
       userMessage: message,
@@ -170,34 +170,106 @@ Instructions for using context:
       );
     }
 
-    const data = await response.json();
+    // Create a streaming response
+    const stream = new ReadableStream({
+      async start(controller) {
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
 
-    if (!data.message || !data.message.content) {
-      console.error("Invalid response from Ollama:", data);
-      return NextResponse.json(
-        { error: "Invalid response from Ollama" },
-        { status: 500 }
-      );
-    }
+        if (!reader) {
+          const errorResponse: StreamingChatResponse = {
+            type: "error",
+            error: "No response stream available",
+          };
+          controller.enqueue(`data: ${JSON.stringify(errorResponse)}\n\n`);
+          controller.close();
+          return;
+        }
 
-    console.log("Ollama response received:", {
-      model: data.model,
-      done: data.done,
-      responseLength: data.message.content.length,
-      sourcesCount: sources.length,
+        try {
+          let buffer = "";
+
+          while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) {
+              // Send completion message with sources
+              const completionResponse: StreamingChatResponse = {
+                type: "done",
+                sources: sources,
+                ragEnabled: ragContext.length > 0,
+                timestamp: new Date().toISOString(),
+              };
+              controller.enqueue(
+                `data: ${JSON.stringify(completionResponse)}\n\n`
+              );
+              break;
+            }
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              if (line.trim()) {
+                try {
+                  const data = JSON.parse(line);
+
+                  if (data.message && data.message.content) {
+                    const chunkResponse: StreamingChatResponse = {
+                      type: "chunk",
+                      content: data.message.content,
+                      model: data.model,
+                    };
+                    controller.enqueue(
+                      `data: ${JSON.stringify(chunkResponse)}\n\n`
+                    );
+                  }
+
+                  if (data.done) {
+                    const completionResponse: StreamingChatResponse = {
+                      type: "done",
+                      sources: sources,
+                      ragEnabled: ragContext.length > 0,
+                      timestamp: new Date().toISOString(),
+                    };
+                    controller.enqueue(
+                      `data: ${JSON.stringify(completionResponse)}\n\n`
+                    );
+                    controller.close();
+                    return;
+                  }
+                } catch (parseError) {
+                  console.error(
+                    "Error parsing streaming response:",
+                    parseError
+                  );
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Streaming error:", error);
+          const errorResponse: StreamingChatResponse = {
+            type: "error",
+            error:
+              error instanceof Error
+                ? error.message
+                : "Unknown streaming error",
+          };
+          controller.enqueue(`data: ${JSON.stringify(errorResponse)}\n\n`);
+        } finally {
+          controller.close();
+        }
+      },
     });
 
-    const ragResponse: RAGChatResponse = {
-      message: data.message.content,
-      sources: sources,
-    };
-
-    return NextResponse.json({
-      message: data.message.content,
-      model: data.model,
-      timestamp: new Date().toISOString(),
-      sources: sources,
-      ragEnabled: ragContext.length > 0,
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
     });
   } catch (error) {
     console.error("Chat API error:", error);

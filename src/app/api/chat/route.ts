@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { ChatMessage, StreamingChatResponse } from "../../types/chat";
 import { searchCulturalKnowledge, searchDocuments } from "../../lib/weaviate";
 import { RAGChatResponse } from "../../types/vector";
+import { graphRAGQuery, hybridSearch } from "../../lib/graphrag";
+import { checkNeo4jConnection } from "../../lib/neo4j";
+import { GraphRAGResponse, HybridSearchResult } from "../../types/graph";
 
 // Ollama API configuration
 const OLLAMA_BASE_URL = "http://localhost:11434";
@@ -38,55 +41,127 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Perform RAG search for relevant context
+    // Perform enhanced GraphRAG search for relevant context
     let ragContext = "";
+    let graphRagContext = "";
     let sources: Array<{
       title: string;
       category: string;
       content: string;
       relevance: number;
+      source: "vector" | "graph" | "document" | "hybrid";
     }> = [];
+    let isGraphRAGEnabled = false;
 
     try {
-      // Search cultural knowledge and documents for context
-      const [culturalResults, documentResults] = await Promise.all([
-        searchCulturalKnowledge(message, undefined, 3),
-        searchDocuments(message, 2),
-      ]);
+      // Check if Neo4j is available for GraphRAG
+      const neo4jStatus = await checkNeo4jConnection();
+      isGraphRAGEnabled = neo4jStatus.connected;
 
-      // Process cultural knowledge results
-      if (culturalResults.success && culturalResults.data.length > 0) {
-        culturalResults.data.forEach((item: any, index: number) => {
-          ragContext += `\n\nCultural Knowledge ${index + 1}:\nTitle: ${
-            item.title
-          }\nCategory: ${item.category}\nContent: ${item.content}\nRegion: ${
-            item.region || "General"
-          }\n`;
-          sources.push({
-            title: item.title,
-            category: item.category,
-            content: item.content.substring(0, 200) + "...",
-            relevance: 0.9 - index * 0.1,
-          });
+      if (isGraphRAGEnabled) {
+        console.log("Using enhanced GraphRAG with hybrid search");
+
+        // Use GraphRAG for enhanced cultural understanding
+        const graphRAGResult: GraphRAGResponse = await graphRAGQuery(message, {
+          includeVector: true,
+          maxDepth: 2,
+          generateReasoning: true,
         });
+
+        if (graphRAGResult.success) {
+          // Build GraphRAG context
+          graphRagContext = `\n\nGraphRAG Enhanced Context:\n`;
+          graphRagContext += `Answer: ${graphRAGResult.answer}\n`;
+
+          if (graphRAGResult.context.insights.length > 0) {
+            graphRagContext += `\nCultural Insights:\n`;
+            graphRAGResult.context.insights.forEach((insight, index) => {
+              graphRagContext += `- ${insight}\n`;
+            });
+          }
+
+          if (graphRAGResult.reasoning.length > 0) {
+            graphRagContext += `\nReasoning Process:\n`;
+            graphRAGResult.reasoning.forEach((step, index) => {
+              graphRagContext += `${index + 1}. ${step}\n`;
+            });
+          }
+
+          // Add graph sources
+          graphRAGResult.sources.forEach((source, index) => {
+            source.nodes.forEach((node, nodeIndex) => {
+              if (node.properties?.name) {
+                sources.push({
+                  title: node.properties.name,
+                  category: node.properties.type || source.type,
+                  content:
+                    node.properties.description ||
+                    node.properties.significance ||
+                    "Cultural entity",
+                  relevance: source.relevance,
+                  source: source.type,
+                });
+              }
+            });
+          });
+
+          ragContext = graphRagContext;
+        } else {
+          console.warn(
+            "GraphRAG failed, falling back to vector search:",
+            graphRAGResult.error
+          );
+          isGraphRAGEnabled = false;
+        }
       }
 
-      // Process document results
-      if (documentResults.success && documentResults.data.length > 0) {
-        documentResults.data.forEach((item: any, index: number) => {
-          ragContext += `\n\nDocument ${index + 1}:\nFile: ${
-            item.fileName
-          }\nContent: ${item.content.substring(0, 500)}\n`;
-          sources.push({
-            title: item.fileName,
-            category: "document",
-            content: item.content.substring(0, 200) + "...",
-            relevance: 0.8 - index * 0.1,
+      // Fallback to vector search if GraphRAG is not available or failed
+      if (!isGraphRAGEnabled) {
+        console.log("Using traditional vector RAG search");
+
+        // Search cultural knowledge and documents for context
+        const [culturalResults, documentResults] = await Promise.all([
+          searchCulturalKnowledge(message, undefined, 3),
+          searchDocuments(message, 2),
+        ]);
+
+        // Process cultural knowledge results
+        if (culturalResults.success && culturalResults.data.length > 0) {
+          culturalResults.data.forEach((item: any, index: number) => {
+            ragContext += `\n\nCultural Knowledge ${index + 1}:\nTitle: ${
+              item.title
+            }\nCategory: ${item.category}\nContent: ${item.content}\nRegion: ${
+              item.region || "General"
+            }\n`;
+            sources.push({
+              title: item.title,
+              category: item.category,
+              content: item.content.substring(0, 200) + "...",
+              relevance: 0.9 - index * 0.1,
+              source: "vector",
+            });
           });
-        });
+        }
+
+        // Process document results
+        if (documentResults.success && documentResults.data.length > 0) {
+          documentResults.data.forEach((item: any, index: number) => {
+            ragContext += `\n\nDocument ${index + 1}:\nFile: ${
+              item.fileName
+            }\nContent: ${item.content.substring(0, 500)}\n`;
+            sources.push({
+              title: item.fileName,
+              category: "document",
+              content: item.content.substring(0, 200) + "...",
+              relevance: 0.8 - index * 0.1,
+              source: "document",
+            });
+          });
+        }
       }
     } catch (ragError) {
-      console.error("RAG search error:", ragError);
+      console.error("Enhanced RAG search error:", ragError);
+      isGraphRAGEnabled = false;
       // Continue without RAG context if search fails
     }
 
@@ -103,12 +178,24 @@ Key guidelines:
 
 ${ragContext ? `\n\nRelevant Context from Knowledge Base:\n${ragContext}` : ""}
 
+${
+  isGraphRAGEnabled
+    ? `\n\n🧠 Enhanced with GraphRAG: I'm using advanced graph reasoning to understand cultural relationships and connections. This allows me to provide deeper insights about how different cultural elements are interconnected.`
+    : `\n\n📚 Using Vector Search: I'm accessing my knowledge base through semantic search to provide relevant cultural information.`
+}
+
 Instructions for using context:
 - Use the context to provide more accurate and detailed information
-- Always acknowledge when information comes from the knowledge base
+- Always acknowledge when information comes from the knowledge base${
+      isGraphRAGEnabled ? " or graph analysis" : ""
+    }
 - If the context is relevant, integrate it naturally into your response
 - If the context is not relevant to the user's question, you can ignore it
-- Maintain your conversational and helpful tone while being informative`;
+- Maintain your conversational and helpful tone while being informative${
+      isGraphRAGEnabled
+        ? "\n- Leverage relationship insights to explain cultural connections and influences"
+        : ""
+    }`;
 
     const messages = [
       {
@@ -198,6 +285,7 @@ Instructions for using context:
                 type: "done",
                 sources: sources,
                 ragEnabled: ragContext.length > 0,
+                graphRAGEnabled: isGraphRAGEnabled,
                 timestamp: new Date().toISOString(),
               };
               controller.enqueue(
@@ -231,6 +319,7 @@ Instructions for using context:
                       type: "done",
                       sources: sources,
                       ragEnabled: ragContext.length > 0,
+                      graphRAGEnabled: isGraphRAGEnabled,
                       timestamp: new Date().toISOString(),
                     };
                     controller.enqueue(

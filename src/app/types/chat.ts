@@ -21,11 +21,13 @@ export interface StreamingChatResponse {
     category: string;
     content: string;
     relevance: number;
+    source?: "vector" | "graph" | "document" | "hybrid";
   }>;
   error?: string;
   model?: string;
   timestamp?: string;
   ragEnabled?: boolean;
+  graphRAGEnabled?: boolean;
 }
 
 export interface OllamaResponse {

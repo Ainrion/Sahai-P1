@@ -14,8 +14,8 @@ sudo systemctl start ollama
 # Navigate to your project directory
 cd sahai
 
-# Start Weaviate container
-docker-compose up -d weaviate
+# Start Docker container (it will automatically start both Weaviate and Neo4j)
+docker-compose up -d
 
 # Wait for Weaviate to be healthy (check status)
 docker ps
@@ -50,9 +50,17 @@ npm run dev
 
 ```bash
 # Initialize the cultural schema
-curl -X POST http://localhost:3000/api/weaviate/status -d '{"action": "initialize"}' -H "Content-Type: application/json"
 
-# Expected response: {"message": "Cultural schema initialized successfully"}
+# For weaviate
+curl -X POST http://localhost:3000/api/weaviate/status -d '{"action": "initialize"}' -H "Content-Type: application/json"
+# Expected response:
+# {"success":true,"message":"Cultural schema initialized successfully"
+
+# For neo4j
+curl -X POST http://localhost:3000/api/neo4j/status -d '{"action": "initialize"}' -H "Content-Type: application/json"
+# Expected response:
+# {"success":true,"message":"Graph schema initialized successfully","metrics":
+
 ```
 
 ### Step 5: Populate Cultural Data
@@ -60,6 +68,9 @@ curl -X POST http://localhost:3000/api/weaviate/status -d '{"action": "initializ
 ```bash
 # In a new terminal, run the cultural data population script
 node scripts/populate-cultural-data.js
+
+# for graph
+curl -X POST http://localhost:3000/api/graph/init -H "Content-Type: application/json"
 
 # Expected output: "Successfully added 10 cultural entries"
 ```

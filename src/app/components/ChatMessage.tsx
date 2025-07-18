@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ChatMessage as ChatMessageType } from "../types/chat";
-import { Bot, User } from "lucide-react";
+import { Bot, User, Volume2, VolumeX } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -15,7 +15,7 @@ const StreamingIndicator: React.FC = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       setDotCount((prev) => (prev === 3 ? 1 : prev + 1));
-    }, 500); // Change dots every 500ms
+    }, 500);
 
     return () => clearInterval(interval);
   }, []);
@@ -24,26 +24,8 @@ const StreamingIndicator: React.FC = () => {
 
   return (
     <span className="inline-flex items-center font-medium ml-1">
-      <span
-        className="mr-1 text-green-500 animate-pulse"
-        style={{
-          textShadow:
-            "0 0 8px rgba(34, 197, 94, 0.6), 0 0 16px rgba(34, 197, 94, 0.3)",
-          animationDuration: "2s",
-        }}
-      >
-        Generating
-      </span>
-      <span
-        className="text-green-500 min-w-[24px] inline-block"
-        style={{
-          textShadow:
-            "0 0 6px rgba(34, 197, 94, 0.8), 0 0 12px rgba(34, 197, 94, 0.4)",
-          filter: "drop-shadow(0 0 4px rgba(34, 197, 94, 0.6))",
-        }}
-      >
-        {dots}
-      </span>
+      <span className="mr-1 text-blue-500 animate-pulse">Generating</span>
+      <span className="text-blue-500 min-w-[24px] inline-block">{dots}</span>
     </span>
   );
 };
@@ -52,39 +34,72 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const isUser = message.role === "user";
   const isTyping = message.isTyping;
   const isStreaming = message.isStreaming;
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+
+  // Check speech synthesis support
+  useEffect(() => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      setSpeechSupported(true);
+    }
+
+    // Cleanup: stop speech when component unmounts
+    return () => {
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const handleSpeak = () => {
+    if (!speechSupported || !message.content || isStreaming) return;
+
+    if (isSpeaking) {
+      // Stop speaking
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    } else {
+      // Start speaking
+      const utterance = new SpeechSynthesisUtterance(message.content);
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+
+      window.speechSynthesis.speak(utterance);
+    }
+  };
 
   return (
-    <div
-      className={`flex w-full mb-4 ${isUser ? "justify-end" : "justify-start"}`}
-    >
-      <div
-        className={`flex max-w-[80%] ${
-          isUser ? "flex-row-reverse" : "flex-row"
-        } items-start gap-2`}
-      >
-        {/* Avatar */}
-        <div
-          className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-            isUser ? "bg-blue-500" : "bg-green-500"
-          }`}
-        >
-          {isUser ? (
-            <User className="w-4 h-4 text-white" />
-          ) : (
-            <Bot className="w-4 h-4 text-white" />
+    <div className={`flex ${isUser ? "justify-start" : "justify-end"}`}>
+      <div className="max-w-lg">
+        <div className="text-sm font-medium text-gray-600 mb-2 flex items-center justify-between">
+          <span>{isUser ? "ME" : "OUR AI"}</span>
+          {!isUser && speechSupported && message.content && !isTyping && (
+            <button
+              onClick={handleSpeak}
+              disabled={isStreaming}
+              className={`p-1 rounded-full transition-colors ${
+                isSpeaking
+                  ? "bg-blue-500 text-white animate-pulse"
+                  : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+              } disabled:opacity-50`}
+              title={isSpeaking ? "Stop speaking" : "Read aloud"}
+            >
+              {isSpeaking ? (
+                <VolumeX className="w-4 h-4" />
+              ) : (
+                <Volume2 className="w-4 h-4" />
+              )}
+            </button>
           )}
         </div>
-
-        {/* Message bubble */}
-        <div
-          className={`relative rounded-2xl px-4 py-2 shadow-sm ${
-            isUser
-              ? "bg-blue-500 text-white rounded-br-md"
-              : "bg-white border border-gray-200 text-gray-800 rounded-bl-md"
-          }`}
-        >
+        <div className="bg-white/50 border-white border-1 rounded-lg  px-4 py-3">
           {isTyping ? (
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-2">
               <div className="flex space-x-1">
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                 <div
@@ -96,41 +111,22 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
                   style={{ animationDelay: "0.2s" }}
                 ></div>
               </div>
-              <span className="text-sm text-gray-500 ml-2">
-                AI is thinking...
-              </span>
+              <span className="text-sm text-gray-500">AI is thinking...</span>
             </div>
           ) : (
-            <div className="prose prose-sm max-w-none">
+            <div className="text-gray-900">
               {isUser ? (
-                <p className="text-white m-0">{message.content}</p>
+                <p className="m-0">{message.content}</p>
               ) : (
-                <div className="text-gray-800 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                  <div className="flex items-start">
-                    <div className="flex-1">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {message.content}
-                      </ReactMarkdown>
-                    </div>
-                    {/* Show streaming indicator inline */}
-                    {isStreaming && <StreamingIndicator />}
-                  </div>
+                <div className="prose prose-sm max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {message.content}
+                  </ReactMarkdown>
+                  {isStreaming && <StreamingIndicator />}
                 </div>
               )}
             </div>
           )}
-
-          {/* Timestamp */}
-          <div
-            className={`text-xs mt-1 ${
-              isUser ? "text-blue-100" : "text-gray-500"
-            }`}
-          >
-            {new Date(message.timestamp).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </div>
         </div>
       </div>
     </div>

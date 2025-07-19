@@ -1,8 +1,10 @@
 # Sahai - AI Companion for India (Phase 1)
+<img width="1920" height="1080" alt="Screenshot 2025-07-19 171121" src="https://github.com/user-attachments/assets/3d99134c-dc87-4f6f-b4dd-5d4cba400838" />
+<img width="1920" height="1080" alt="Screenshot 2025-07-19 123412" src="https://github.com/user-attachments/assets/0d08b974-2414-4aaa-9e6a-18b678ec6286" />
 
 ## 📖 Overview
 
-**Sahai** is a culturally-aware AI companion tailored for the Indian market, offering intelligent voice and text assistance. Developed as a Minimum Viable Product (MVP) over a 3-month period, Sahai Phase 1 leverages open-source Large Language Models (LLMs) to provide:
+**Sahai** is a culturally aware AI companion tailored for the Indian market, offering intelligent voice and text assistance. Developed as a Minimum Viable Product (MVP) over a 1-2 month period, Sahai Phase 1 leverages open-source Large Language Models (LLMs) to provide:
 
 - Natural language conversation
 - Cultural context understanding
@@ -10,7 +12,7 @@
 
 The system is deployed as:
 
-- A mobile application (iOS and Android)
+- A mobile application (iOS and Android) (Coming Soon)
 - A progressive web app (PWA)
 - An API service for future integrations
 
@@ -47,9 +49,9 @@ The system is deployed as:
 ## 📦 Project Details
 
 - **Version**: 1.0
-- **Development Timeline**: May 23, 2025 – August 23, 2025
+- **Development Timeline**: May 23, 2025 – July 19, 2025
 - **Prepared By**: Development Team
-- **License**: MIT License (see [LICENSE](./LICENSE))
+- **License**: Coming Soon 
 
 ---
 
@@ -57,16 +59,14 @@ The system is deployed as:
 
 ### Client Environment
 
-- **Mobile**: Android 8.0+ or iOS 12.0+
 - **Web**: Chrome 90+, Safari 14+, Firefox 88+
-- **Hardware**: 2GB+ RAM, microphone, speaker/headphones
+- **Hardware**: 2GB+ RAM
 - **Connectivity**: 3G/4G/WiFi
 
 ### Server Environment
 
-- **Cloud**: AWS (primary), multi-cloud ready
-- **Orchestration**: Kubernetes, Docker
-- **Databases**: PostgreSQL 15+, Redis, Weaviate (vector DB), Neo4j (graph DB)
+- **Orchestration**: Docker
+- **Databases**: Redis, Weaviate (vector DB), Neo4j (graph DB)
 - **LLM**: Llama 3.2 3B (fallback: Llama 2 7B or Mistral 7B)
 - **Hardware**: 6GB+ RAM, 6GB VRAM (GPU), ~2.5GB disk space
 
@@ -77,10 +77,7 @@ The system is deployed as:
 ### Prerequisites
 
 - Node.js 18.x+
-- Python 3.11+
 - Docker (latest)
-- Kubernetes CLI (`kubectl`)
-- AWS CLI (configured)
 - Ollama
 - OS: Ubuntu 22.04 / WSL2 (Windows)
 
@@ -135,13 +132,6 @@ sudo systemctl is-active ollama
 
 ---
 
-### Initialize Databases
-
-```bash
-pip install -r backend/requirements.txt
-cp backend/.env.example backend/.env
-python backend/manage.py migrate
-```
 
 **Initialize Weaviate & Neo4j:**
 
@@ -160,14 +150,6 @@ curl -X POST http://localhost:3000/api/graph/init -H "Content-Type: application/
 ---
 
 ### Start Frontend
-
-#### Mobile App (React Native)
-
-```bash
-cd mobile
-npm install
-npx react-native run-android   # or run-ios
-```
 
 #### Web App (Next.js)
 

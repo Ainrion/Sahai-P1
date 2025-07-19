@@ -107,6 +107,18 @@ export const Chat: React.FC = () => {
     setIsLoading(true);
     setError(null);
 
+    // Add preparing message immediately
+    const preparingMessageId = generateId();
+    const preparingMessage: ChatMessageType = {
+      id: preparingMessageId,
+      role: "assistant",
+      content: "",
+      timestamp: new Date(),
+      isPreparing: true,
+    };
+
+    setMessages((prev) => [...prev, preparingMessage]);
+
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -128,7 +140,7 @@ export const Chat: React.FC = () => {
         throw new Error("No response body");
       }
 
-      // Create assistant message for streaming
+      // Replace preparing message with streaming message
       const assistantMessageId = generateId();
       currentStreamingMessageIdRef.current = assistantMessageId;
 
@@ -140,7 +152,10 @@ export const Chat: React.FC = () => {
         isStreaming: true,
       };
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      // Replace preparing message with actual streaming message
+      setMessages((prev) =>
+        prev.map((msg) => (msg.isPreparing ? assistantMessage : msg))
+      );
 
       const decoder = new TextDecoder();
       let buffer = "";
@@ -188,8 +203,10 @@ export const Chat: React.FC = () => {
       console.error("Chat error:", err);
       setError(err instanceof Error ? err.message : "Failed to send message");
 
-      // Remove the user message if there was an error
-      setMessages((prev) => prev.filter((msg) => msg.id !== userMessage.id));
+      // Remove the user message and any preparing message if there was an error
+      setMessages((prev) =>
+        prev.filter((msg) => msg.id !== userMessage.id && !msg.isPreparing)
+      );
     } finally {
       setIsLoading(false);
     }
@@ -224,11 +241,11 @@ export const Chat: React.FC = () => {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      {/* Background with gradient blobs */}
-      <div className="absolute inset-0 bg-white overflow-hidden">
+      {/* Background with gradient blobs - Fixed to viewport */}
+      <div className="fixed inset-0 bg-white overflow-hidden pointer-events-none z-0">
         {/* Pink blob */}
         <div
-          className="absolute w-220 h-220 rounded-full opacity-40 blur-3xl"
+          className="fixed w-220 h-220 rounded-full opacity-40 blur-3xl"
           style={{
             background: "radial-gradient(circle, #FF86E1 30%, transparent 70%)",
             top: "80%",
@@ -240,7 +257,7 @@ export const Chat: React.FC = () => {
 
         {/* Blue blob */}
         <div
-          className="absolute w-280 h-240 rounded-full opacity-40 blur-3xl"
+          className="fixed w-280 h-240 rounded-full opacity-40 blur-3xl"
           style={{
             background: "radial-gradient(circle, #89BCFF 0%, transparent 70%)",
             top: "70%",
@@ -290,48 +307,48 @@ export const Chat: React.FC = () => {
           {/* Messages Container */}
           <div className="mb-8 max-w-[883px] mx-auto w-full px-6">
             {messages.length === 0 ? (
-              /* Sample Conversation */
+              /* Suggestion Buttons */
               <div className="space-y-6">
-                {/* User Message */}
-                <div className="flex justify-start">
-                  <div className="max-w-xs">
-                    <div className="text-sm font-medium text-gray-600 mb-2">
-                      ME
-                    </div>
-                    <div className="bg-white/50 border-white border-1 rounded-lg px-4 py-3">
-                      <p className="text-gray-900">What can I ask you to do?</p>
-                    </div>
-                  </div>
+                {/* Header */}
+                <div className="text-center">
+                  <h2 className="text-lg font-medium text-gray-700 mb-6">
+                    Suggestions on what to ask Our AI
+                  </h2>
                 </div>
 
-                {/* AI Response */}
-                <div className="flex justify-end">
-                  <div className="max-w-lg">
-                    <div className="text-sm font-medium text-gray-600 mb-2">
-                      OUR AI
-                    </div>
-                    <div className="bg-white/50 border-white border-1 rounded-lg px-4 py-3">
-                      <p className="text-gray-900 mb-3">
-                        Great question! You can ask for my help with the
-                        following:
-                      </p>
-                      <div className="text-gray-700 space-y-2">
-                        <div>
-                          1. Anything to do with your reports in our software
-                          e.g. What is the last report we exported?
-                        </div>
-                        <div>
-                          2. Anything to do with your organisation e.g. how many
-                          employees are using our software?
-                        </div>
-                        <div>
-                          3. Anything to do with the features we have in our
-                          software e.g how can I change the colours of my
-                          report?
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                {/* Suggestion Buttons */}
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => sendMessage("What can I ask you to do?")}
+                    disabled={isLoading || !isConnected}
+                    className="bg-white/60 hover:bg-white/80 border border-white/40 rounded-lg px-4 py-3 text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex-1 text-left"
+                  >
+                    What can I ask you to do?
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      sendMessage(
+                        "Which one of my projects is performing the best?"
+                      )
+                    }
+                    disabled={isLoading || !isConnected}
+                    className="bg-white/60 hover:bg-white/80 border border-white/40 rounded-lg px-4 py-3 text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex-1 text-left"
+                  >
+                    Which one of my projects is performing the best?
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      sendMessage(
+                        "What projects should I be concerned about right now?"
+                      )
+                    }
+                    disabled={isLoading || !isConnected}
+                    className="bg-white/60 hover:bg-white/80 border border-white/40 rounded-lg px-4 py-3 text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex-1 text-left"
+                  >
+                    What projects should I be concerned about right now?
+                  </button>
                 </div>
               </div>
             ) : (

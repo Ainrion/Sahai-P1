@@ -3,6 +3,7 @@ import { ChatMessage as ChatMessageType } from "../types/chat";
 import { Bot, User, Volume2, VolumeX } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import Image from "next/image";
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -30,10 +31,44 @@ const StreamingIndicator: React.FC = () => {
   );
 };
 
+// Preparing answer indicator with logo
+const PreparingIndicator: React.FC = () => {
+  const [dotCount, setDotCount] = useState(1);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDotCount((prev) => (prev === 3 ? 1 : prev + 1));
+    }, 600);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const dots = ".".repeat(dotCount);
+
+  return (
+    <div className="flex items-center space-x-3">
+      <div className="animate-pulse">
+        <Image
+          src="/logo/Logo.png"
+          alt="AI Logo"
+          width={24}
+          height={24}
+          className="w-6 h-6"
+        />
+      </div>
+      <span className="flex items-center text-gray-600">
+        <span className="mr-1">Preparing your answer</span>
+        <span className="min-w-[24px] inline-block">{dots}</span>
+      </span>
+    </div>
+  );
+};
+
 export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const isUser = message.role === "user";
   const isTyping = message.isTyping;
   const isStreaming = message.isStreaming;
+  const isPreparing = message.isPreparing;
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
 
@@ -78,27 +113,33 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
       <div className="max-w-lg">
         <div className="text-sm font-medium text-gray-600 mb-2 flex items-center justify-between">
           <span>{isUser ? "ME" : "OUR AI"}</span>
-          {!isUser && speechSupported && message.content && !isTyping && (
-            <button
-              onClick={handleSpeak}
-              disabled={isStreaming}
-              className={`p-1 rounded-full transition-colors ${
-                isSpeaking
-                  ? "bg-blue-500 text-white animate-pulse"
-                  : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-              } disabled:opacity-50`}
-              title={isSpeaking ? "Stop speaking" : "Read aloud"}
-            >
-              {isSpeaking ? (
-                <VolumeX className="w-4 h-4" />
-              ) : (
-                <Volume2 className="w-4 h-4" />
-              )}
-            </button>
-          )}
+          {!isUser &&
+            speechSupported &&
+            message.content &&
+            !isTyping &&
+            !isPreparing && (
+              <button
+                onClick={handleSpeak}
+                disabled={isStreaming}
+                className={`p-1 rounded-full transition-colors ${
+                  isSpeaking
+                    ? "bg-blue-500 text-white animate-pulse"
+                    : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                } disabled:opacity-50`}
+                title={isSpeaking ? "Stop speaking" : "Read aloud"}
+              >
+                {isSpeaking ? (
+                  <VolumeX className="w-4 h-4" />
+                ) : (
+                  <Volume2 className="w-4 h-4" />
+                )}
+              </button>
+            )}
         </div>
         <div className="bg-white/50 border-white border-1 rounded-lg  px-4 py-3">
-          {isTyping ? (
+          {isPreparing ? (
+            <PreparingIndicator />
+          ) : isTyping ? (
             <div className="flex items-center space-x-2">
               <div className="flex space-x-1">
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>

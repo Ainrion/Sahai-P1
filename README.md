@@ -1,4 +1,3 @@
-````markdown
 # Sahai - AI Companion for India (Phase 1)
 
 ## 📖 Overview
@@ -95,7 +94,6 @@ The system is deployed as:
 git clone https://github.com/<your-organization>/sahai.git
 cd sahai
 ```
-````
 
 ### Install Ollama
 

@@ -277,8 +277,3 @@ docker system prune -f
 **Auth:** JWT (24hr expiry)
 **Rate Limit:** 100 req/min/user
 📄 Full API docs: `docs/api.md`
-
-```
-
-Let me know if you want this broken into multiple files (like `INSTALL.md`, `API.md`, etc.) or a downloadable file version.
-```

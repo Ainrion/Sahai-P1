@@ -5,6 +5,7 @@ export interface ChatMessage {
   timestamp: Date;
   isTyping?: boolean;
   isStreaming?: boolean;
+  isPreparing?: boolean;
 }
 
 export interface ChatResponse {

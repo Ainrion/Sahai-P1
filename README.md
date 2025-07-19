@@ -1,6 +1,6 @@
 # Sahai - AI Companion for India (Phase 1)
-<img width="1920" height="1080" alt="Screenshot 2025-07-19 171121" src="https://github.com/user-attachments/assets/3d99134c-dc87-4f6f-b4dd-5d4cba400838" />
-<img width="1920" height="1080" alt="Screenshot 2025-07-19 123412" src="https://github.com/user-attachments/assets/0d08b974-2414-4aaa-9e6a-18b678ec6286" />
+<img width="1883" height="910" alt="Sahai AI" src="https://github.com/user-attachments/assets/cd714c35-f6c6-4497-ad44-b8232487ed85" />
+<img width="1859" height="910" alt="Screenshot 2025-07-19 123412" src="https://github.com/user-attachments/assets/ca82d10c-1ab7-437f-b57e-7b32d1b07adb" />
 
 ## 📖 Overview
 

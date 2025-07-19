@@ -1,36 +1,286 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+````markdown
+# Sahai - AI Companion for India (Phase 1)
 
-## Getting Started
+## 📖 Overview
 
-First, run the development server:
+**Sahai** is a culturally-aware AI companion tailored for the Indian market, offering intelligent voice and text assistance. Developed as a Minimum Viable Product (MVP) over a 3-month period, Sahai Phase 1 leverages open-source Large Language Models (LLMs) to provide:
+
+- Natural language conversation
+- Cultural context understanding
+- Bilingual support (Hindi and English)
+
+The system is deployed as:
+
+- A mobile application (iOS and Android)
+- A progressive web app (PWA)
+- An API service for future integrations
+
+---
+
+## 🚀 Key Features
+
+- **Natural Language Conversation**  
+  Supports Hindi, English, and code-switching with culturally appropriate responses  
+  (`REQ-CF-001`)
+
+- **Cultural Context Awareness**  
+  Understands Indian festivals, customs, food preferences, and regional nuances  
+  (`REQ-CF-002`)
+
+- **Voice Interaction**  
+  Speech-to-text and text-to-speech with Indian accent support and male/female voice options  
+  (`REQ-VI-001`, `REQ-VI-002`)
+
+- **Local Information Retrieval**  
+  Provides weather, news, and general knowledge tailored to Indian users  
+  (`REQ-IR-001`, `REQ-IR-002`)
+
+- **Personalization**  
+  Adapts to user preferences, location, and conversation patterns  
+  (`REQ-PE-001`, `REQ-PE-002`)
+
+- **Privacy-Focused**  
+  Complies with Indian data protection laws, AES-256 encryption, and user-controlled data retention  
+  (`REQ-NF-003`, `REQ-NF-004`)
+
+---
+
+## 📦 Project Details
+
+- **Version**: 1.0
+- **Development Timeline**: May 23, 2025 – August 23, 2025
+- **Prepared By**: Development Team
+- **License**: MIT License (see [LICENSE](./LICENSE))
+
+---
+
+## 🛠️ System Requirements
+
+### Client Environment
+
+- **Mobile**: Android 8.0+ or iOS 12.0+
+- **Web**: Chrome 90+, Safari 14+, Firefox 88+
+- **Hardware**: 2GB+ RAM, microphone, speaker/headphones
+- **Connectivity**: 3G/4G/WiFi
+
+### Server Environment
+
+- **Cloud**: AWS (primary), multi-cloud ready
+- **Orchestration**: Kubernetes, Docker
+- **Databases**: PostgreSQL 15+, Redis, Weaviate (vector DB), Neo4j (graph DB)
+- **LLM**: Llama 3.2 3B (fallback: Llama 2 7B or Mistral 7B)
+- **Hardware**: 6GB+ RAM, 6GB VRAM (GPU), ~2.5GB disk space
+
+---
+
+## 🧪 Installation
+
+### Prerequisites
+
+- Node.js 18.x+
+- Python 3.11+
+- Docker (latest)
+- Kubernetes CLI (`kubectl`)
+- AWS CLI (configured)
+- Ollama
+- OS: Ubuntu 22.04 / WSL2 (Windows)
+
+---
+
+## 🖥️ Local Setup
+
+### Clone the Repository
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/<your-organization>/sahai.git
+cd sahai
+```
+````
+
+### Install Ollama
+
+**Ubuntu/WSL2**:
+
+```bash
+curl -fsSL https://ollama.ai/install.sh | sh
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**Mac**:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+brew install ollama
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Start Ollama
 
-## Learn More
+```bash
+ollama serve
+ollama pull llama3.2:3b
+ollama list
+ollama run llama3.2:3b "Hello, how are you?"
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Start Core Services
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+sudo service docker start
+docker-compose up -d
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Verify Services:**
 
-## Deploy on Vercel
+```bash
+docker ps
+curl http://localhost:8080/v1/meta
+sudo systemctl is-active ollama
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Initialize Databases
+
+```bash
+pip install -r backend/requirements.txt
+cp backend/.env.example backend/.env
+python backend/manage.py migrate
+```
+
+**Initialize Weaviate & Neo4j:**
+
+```bash
+curl -X POST http://localhost:3000/api/weaviate/status -d '{"action": "initialize"}' -H "Content-Type: application/json"
+curl -X POST http://localhost:3000/api/neo4j/status -d '{"action": "initialize"}' -H "Content-Type: application/json"
+```
+
+**Populate Cultural Data:**
+
+```bash
+node scripts/populate-cultural-data.js
+curl -X POST http://localhost:3000/api/graph/init -H "Content-Type: application/json"
+```
+
+---
+
+### Start Frontend
+
+#### Mobile App (React Native)
+
+```bash
+cd mobile
+npm install
+npx react-native run-android   # or run-ios
+```
+
+#### Web App (Next.js)
+
+```bash
+cd web
+npm install
+npm run dev   # Available at http://localhost:3000
+```
+
+---
+
+### ✅ Verify System
+
+```bash
+curl -X POST http://localhost:3000/api/search -d '{"query": "Diwali"}' -H "Content-Type: application/json"
+```
+
+Visit: [http://localhost:3000](http://localhost:3000)
+
+---
+
+## 🧯 Troubleshooting
+
+### Ollama Issues
+
+```bash
+sudo systemctl status ollama
+sudo systemctl restart ollama
+curl http://localhost:11434
+```
+
+### Weaviate Issues
+
+```bash
+docker logs weaviate
+docker-compose restart weaviate
+```
+
+### Next.js Issues
+
+```bash
+rm -rf node_modules package-lock.json
+npm install
+npm run dev
+```
+
+### Missing Cultural Data
+
+```bash
+node scripts/populate-cultural-data.js
+```
+
+---
+
+## 🛑 Stopping the System
+
+### Graceful Shutdown
+
+```bash
+# Stop frontend (Ctrl+C)
+docker-compose down
+sudo systemctl stop ollama
+sudo service docker stop
+```
+
+### Full Cleanup
+
+```bash
+docker-compose down -v
+docker system prune -f
+```
+
+---
+
+## 💡 Usage
+
+- **Mobile App**: Run locally or install from app stores post-launch
+- **Web App**: [http://localhost:3000](http://localhost:3000)
+- **API**: Use REST API at `/api/v1/` (see below)
+
+---
+
+## ✨ Example Interactions
+
+- **Text**:
+  _"Mujhe Holi ke liye traditional Gujarati recipe batao."_
+
+- **Voice**:
+  Press mic and say _"What’s the weather in Delhi today?"_
+
+- **Settings**:
+  Choose language, voice, and cultural preferences
+
+---
+
+## 📘 API Documentation
+
+**Base URL:** `/api/v1/`
+
+### Endpoints
+
+- `POST /auth/register` – Register via email/phone/social
+- `POST /chat` – Send messages (text/voice)
+- `GET /info/weather` – Get weather info
+- `GET /user/profile` – Fetch preferences and history
+
+**Auth:** JWT (24hr expiry)
+**Rate Limit:** 100 req/min/user
+📄 Full API docs: `docs/api.md`
+
+```
+
+Let me know if you want this broken into multiple files (like `INSTALL.md`, `API.md`, etc.) or a downloadable file version.
+```

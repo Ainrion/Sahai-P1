@@ -11,23 +11,21 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@huggingface/inference": "^4.4.0",
+    "@google/generative-ai": "^0.24.1",
+    "@mistralai/mistralai": "^1.7.5",
     "@types/multer": "^2.0.0",
-    "@types/uuid": "^10.0.0",
-    "axios": "^1.10.0",
     "clsx": "^2.1.1",
+    "groq-sdk": "^0.30.0",
     "lucide-react": "^0.525.0",
-    "mammoth": "^1.9.1",
-    "multer": "^2.0.1",
-    "neo4j-driver": "^5.28.1",
+    "multer": "^2.0.2",
     "next": "15.3.4",
+    "openai": "^5.12.2",
     "pdf-parse": "^1.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
-    "uuid": "^11.1.0",
-    "weaviate-client": "^3.6.2"
+    "sharp": "^0.34.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { ChatMessage as ChatMessageType } from "../types/chat";
-import { Bot, User, Volume2, VolumeX } from "lucide-react";
+import {
+  Bot,
+  User,
+  Volume2,
+  VolumeX,
+  FileText,
+  Image as ImageIcon,
+  Download,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Image from "next/image";
@@ -155,17 +163,67 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
               <span className="text-sm text-gray-500">AI is thinking...</span>
             </div>
           ) : (
-            <div className="text-gray-900">
-              {isUser ? (
-                <p className="m-0">{message.content}</p>
-              ) : (
-                <div className="prose prose-sm max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {message.content}
-                  </ReactMarkdown>
-                  {isStreaming && <StreamingIndicator />}
+            <div className="space-y-3">
+              {/* File Attachments */}
+              {message.attachments && message.attachments.length > 0 && (
+                <div className="space-y-2">
+                  {message.attachments.map((attachment) => (
+                    <div
+                      key={attachment.id}
+                      className="border border-gray-200 rounded-lg p-3 bg-gray-50"
+                    >
+                      <div className="flex items-center space-x-3">
+                        {attachment.type.startsWith("image/") ? (
+                          <div className="flex-shrink-0">
+                            <Image
+                              src={attachment.url}
+                              alt={attachment.name}
+                              width={80}
+                              height={80}
+                              className="rounded-lg object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex-shrink-0">
+                            <FileText className="w-8 h-8 text-red-500" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {attachment.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {(attachment.size / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
+                        <a
+                          href={attachment.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-shrink-0 p-1 text-gray-400 hover:text-blue-500 transition-colors"
+                          title="Open file"
+                        >
+                          <Download className="w-4 h-4" />
+                        </a>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
+
+              {/* Message Content */}
+              <div className="text-gray-900">
+                {isUser ? (
+                  <p className="m-0">{message.content}</p>
+                ) : (
+                  <div className="prose prose-sm max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {message.content}
+                    </ReactMarkdown>
+                    {isStreaming && <StreamingIndicator />}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

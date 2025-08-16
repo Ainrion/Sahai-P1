@@ -1,3 +1,12 @@
+export interface FileAttachment {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  url: string;
+  content?: string; // Extracted text for PDFs
+}
+
 export interface ChatMessage {
   id: string;
   content: string;
@@ -6,6 +15,7 @@ export interface ChatMessage {
   isTyping?: boolean;
   isStreaming?: boolean;
   isPreparing?: boolean;
+  attachments?: FileAttachment[];
 }
 
 export interface ChatResponse {
@@ -15,39 +25,15 @@ export interface ChatResponse {
 
 // Streaming response types
 export interface StreamingChatResponse {
-  type: "chunk" | "done" | "error";
-  content?: string;
+  content: string;
+  done: boolean;
   sources?: Array<{
     title: string;
     category: string;
     content: string;
     relevance: number;
-    source?: "vector" | "graph" | "document" | "hybrid";
   }>;
   error?: string;
   model?: string;
   timestamp?: string;
-  ragEnabled?: boolean;
-  graphRAGEnabled?: boolean;
-}
-
-export interface OllamaResponse {
-  model: string;
-  created_at: string;
-  message: {
-    role: string;
-    content: string;
-  };
-  done: boolean;
-}
-
-// Ollama streaming response
-export interface OllamaStreamResponse {
-  model: string;
-  created_at: string;
-  message: {
-    role: string;
-    content: string;
-  };
-  done: boolean;
 }

@@ -1,45 +1,64 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import {
+  aiProviderService,
+  PROVIDER_CONFIGS,
+  AIProvider,
+} from "../../../lib/aiProviders";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // Check if Ollama is running by hitting its API endpoint
-    const response = await fetch("http://localhost:11434/api/tags", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const availableProviders = aiProviderService.getAvailableProviders();
+    const allProviders = Object.keys(PROVIDER_CONFIGS) as AIProvider[];
 
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: "Ollama is not running" },
-        { status: 503 }
-      );
+    const healthStatus: Record<string, any> = {};
+    let overallHealthy = false;
+
+    // Test each available provider
+    for (const provider of allProviders) {
+      const isAvailable = aiProviderService.isProviderAvailable(provider);
+      const config = PROVIDER_CONFIGS[provider];
+
+      healthStatus[provider] = {
+        name: config.name,
+        model: config.model,
+        available: isAvailable,
+        status: isAvailable ? "configured" : "missing_api_key",
+      };
+
+      if (isAvailable) {
+        overallHealthy = true;
+        // Optionally test with a simple request (commented out to avoid unnecessary API calls)
+        // try {
+        //   const testStream = aiProviderService.streamChat(provider, [
+        //     { role: "user", content: "Hi" }
+        //   ]);
+        //   const firstChunk = await testStream.next();
+        //   healthStatus[provider].status = "working";
+        //   healthStatus[provider].tested = true;
+        // } catch (error) {
+        //   healthStatus[provider].status = "error";
+        //   healthStatus[provider].error = error instanceof Error ? error.message : "Unknown error";
+        // }
+      }
     }
 
-    const models = await response.json();
-
-    // Check if Llama 3.2 3B model is available
-    const hasLlama3_2 = models.models?.some(
-      (model: any) =>
-        model.name.includes("llama3.2:3b") ||
-        model.name.includes("llama3.2") ||
-        model.name.includes("llama3")
-    );
-
     return NextResponse.json({
-      status: "connected",
-      ollama_running: true,
-      models_available: models.models?.length || 0,
-      llama3_2_available: hasLlama3_2,
-      models: models.models?.map((m: any) => m.name) || [],
+      status: overallHealthy ? "healthy" : "no_providers_available",
+      providers: healthStatus,
+      available_count: availableProviders.length,
+      total_count: allProviders.length,
+      available_providers: availableProviders,
+      message: overallHealthy
+        ? `${availableProviders.length} AI provider(s) available`
+        : "No AI providers configured. Please set API keys.",
     });
   } catch (error) {
     console.error("Health check failed:", error);
     return NextResponse.json(
       {
-        error: "Cannot connect to Ollama",
-        message: "Make sure Ollama is running on localhost:11434",
+        error: "Health check failed",
+        message: "Unable to perform health check",
+        status: "error",
       },
       { status: 503 }
     );

@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
 
     // Convert file to buffer
     const bytes = await file.arrayBuffer();
-    let buffer = Buffer.from(bytes);
+    let buffer = Buffer.from(bytes as ArrayBuffer);
 
     let extractedContent = "";
 

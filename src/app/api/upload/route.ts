@@ -27,7 +27,10 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
 }
 
 // Process image (resize if too large)
-async function processImage(buffer: Buffer, filename: string): Promise<Buffer> {
+async function processImage(
+  buffer: Buffer,
+  _filename: string
+): Promise<Buffer> {
   try {
     const image = sharp(buffer);
     const metadata = await image.metadata();

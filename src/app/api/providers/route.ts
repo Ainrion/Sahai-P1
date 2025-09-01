@@ -11,11 +11,13 @@ export async function GET() {
       available: true,
     }));
 
-    const unavailableProviders = Object.keys(PROVIDER_CONFIGS)
-      .filter((provider) => !availableProviders.includes(provider as any))
+    const unavailableProviders = (
+      Object.keys(PROVIDER_CONFIGS) as Array<keyof typeof PROVIDER_CONFIGS>
+    )
+      .filter((provider) => !availableProviders.includes(provider))
       .map((provider) => ({
-        id: provider,
-        ...PROVIDER_CONFIGS[provider as keyof typeof PROVIDER_CONFIGS],
+        id: provider as string,
+        ...PROVIDER_CONFIGS[provider],
         available: false,
       }));
 

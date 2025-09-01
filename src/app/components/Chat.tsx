@@ -27,9 +27,37 @@ export const Chat: React.FC = () => {
   const [isClosingPopup, setIsClosingPopup] = useState(false);
   const [isPopupAnimating, setIsPopupAnimating] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  // Removed unused ref
+  // const scrollAreaRef = useRef<HTMLDivElement>(null);
   const currentStreamingMessageIdRef = useRef<string | null>(null);
-  const recognitionRef = useRef<any>(null);
+  type SpeechRecognitionAlternativeLike = {
+    transcript: string;
+    confidence?: number;
+  };
+
+  type SpeechRecognitionEventLike = {
+    results: { 0: { 0: SpeechRecognitionAlternativeLike } };
+  };
+
+  type SpeechRecognitionErrorEventLike = {
+    error?: string;
+  };
+
+  type BrowserSpeechRecognition = {
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    onstart: (() => void) | null;
+    onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+    onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
+    onend: (() => void) | null;
+    start: () => void;
+    stop: () => void;
+  };
+
+  // Some browsers expose webkitSpeechRecognition instead of SpeechRecognition
+  // We define a minimal interface above to avoid using any
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
 
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -51,13 +79,21 @@ export const Chat: React.FC = () => {
   // Initialize speech recognition
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const SpeechRecognition =
-        (window as any).SpeechRecognition ||
-        (window as any).webkitSpeechRecognition;
+      const SpeechRecognitionCtor: new () => BrowserSpeechRecognition =
+        (
+          window as unknown as {
+            SpeechRecognition?: new () => BrowserSpeechRecognition;
+          }
+        ).SpeechRecognition ||
+        (
+          window as unknown as {
+            webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
+          }
+        ).webkitSpeechRecognition!;
 
-      if (SpeechRecognition) {
+      if (SpeechRecognitionCtor) {
         setSpeechSupported(true);
-        const recognition = new SpeechRecognition();
+        const recognition = new SpeechRecognitionCtor();
         recognition.continuous = false;
         recognition.interimResults = false;
         recognition.lang = "en-US";
@@ -66,17 +102,18 @@ export const Chat: React.FC = () => {
           setIsRecording(true);
         };
 
-        recognition.onresult = (event: any) => {
+        recognition.onresult = (event: SpeechRecognitionEventLike) => {
           const transcript = event.results[0][0].transcript;
           setInputValue(transcript);
           setIsRecording(false);
           setError(null); // Clear any previous errors
         };
 
-        recognition.onerror = (event: any) => {
-          console.error("Speech recognition error:", event.error);
+        recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
+          const errMsg = event.error ?? "unknown_error";
+          console.error("Speech recognition error:", errMsg);
           setIsRecording(false);
-          setError(`Speech recognition error: ${event.error}`);
+          setError(`Speech recognition error: ${errMsg}`);
         };
 
         recognition.onend = () => {
@@ -295,7 +332,7 @@ export const Chat: React.FC = () => {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();

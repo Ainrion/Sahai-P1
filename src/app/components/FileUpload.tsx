@@ -1,7 +1,14 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { Paperclip, X, FileText, Image, Upload, Loader } from "lucide-react";
+import {
+  Paperclip,
+  X,
+  FileText,
+  Image as ImageIcon,
+  Upload,
+  Loader,
+} from "lucide-react";
 
 export interface UploadedFile {
   id: string;
@@ -145,7 +152,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
   const getFileIcon = (type: string) => {
     if (type.startsWith("image/")) {
-      return <Image className="w-4 h-4 text-blue-500" />;
+      return <ImageIcon className="w-4 h-4 text-blue-500" />;
     } else if (type === "application/pdf") {
       return <FileText className="w-4 h-4 text-red-500" />;
     }

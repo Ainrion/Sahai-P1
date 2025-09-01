@@ -10,7 +10,27 @@ export async function GET() {
     const availableProviders = aiProviderService.getAvailableProviders();
     const allProviders = Object.keys(PROVIDER_CONFIGS) as AIProvider[];
 
-    const healthStatus: Record<string, any> = {};
+    const healthStatus: Record<
+      AIProvider,
+      {
+        name: string;
+        model: string;
+        available: boolean;
+        status: "configured" | "missing_api_key";
+        tested?: boolean;
+        error?: string;
+      }
+    > = {} as Record<
+      AIProvider,
+      {
+        name: string;
+        model: string;
+        available: boolean;
+        status: "configured" | "missing_api_key";
+        tested?: boolean;
+        error?: string;
+      }
+    >;
     let overallHealthy = false;
 
     // Test each available provider

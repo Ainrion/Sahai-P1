@@ -1,14 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ChatMessage as ChatMessageType } from "../types/chat";
-import {
-  Bot,
-  User,
-  Volume2,
-  VolumeX,
-  FileText,
-  Image as ImageIcon,
-  Download,
-} from "lucide-react";
+import { Volume2, VolumeX, FileText, Download } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Image from "next/image";
